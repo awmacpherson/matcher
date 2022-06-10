@@ -23,9 +23,14 @@ contract Matcher {
 			order.buy_amount, 
 			order.sell_amount
 		));
+
+		// insert into order book
 		order_book[order_id] = order;
+		
 		// and actually transfer the tokens
-		IERC20(order.sell_tok).transfer(address(this), order.sell_amount);
+		//IERC20(order.sell_tok).transfer(address(this), order.sell_amount);
+		
+		// return a value in case this was called by some other contract
 		return order_id;
 	}
 
@@ -44,7 +49,7 @@ contract Matcher {
 
 		// only read from storage once
 		// the solc optimiser may do this automatically
-		Order order = order_book[order_id];
+		Order memory order = order_book[order_id];
 		// some gas is wasted reading addresses in the case the
 		// transaction reverts without doing the transfers.
 		// On the other hand, reading packed addresses one by one
@@ -61,8 +66,8 @@ contract Matcher {
 		// partially execute?
 
 		// update storage
-		order_book[order_id].sell_amount = sell - ask;
-		order_book[order_id].buy_amount = buy - bid;
+		order_book[order_id].sell_amount = order.sell_amount - ask;
+		order_book[order_id].buy_amount = order.buy_amount - bid;
 
 		// and now actually do the transfers
 		IERC20(order_book[order_id].sell_tok).transfer(msg.sender, ask);
