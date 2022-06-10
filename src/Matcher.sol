@@ -1,17 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.6;
 
-import './interfaces/IERC20.sol';
+
+import {IERC20} from './interfaces/IERC20.sol';
 
 struct Order {
-	uint buy_amount;
-	uint sell_amount;
+	uint256 buy_amount;
+	uint256 sell_amount;
 	address owner;
 	address buy_tok;
 	address sell_tok; // 3 addresses pack into 2 slots
 }
 
 contract Matcher {
+	mapping (address => uint) credit; // keep track of who sent me money
 	mapping (bytes32 => Order) order_book; // key is keccak256 hash
 
 	function create_order(Order calldata order) public returns (bytes32) {
@@ -28,7 +30,11 @@ contract Matcher {
 		order_book[order_id] = order;
 		
 		// and actually transfer the tokens
-		//IERC20(order.sell_tok).transfer(address(this), order.sell_amount);
+		IERC20(order.sell_tok).transferFrom(
+			msg.sender, 
+			address(this), 
+			order.sell_amount
+		);
 		
 		// return a value in case this was called by some other contract
 		return order_id;
