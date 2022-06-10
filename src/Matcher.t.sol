@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.6;
 
-import "ds-test/test.sol";
+import "../lib/ds-test/src/test.sol";
+//import "../lib/canonical-weth/WETH9.sol";
+//import "makerdao/dss.sol";
 
 import "./Matcher.sol";
 
@@ -10,6 +12,8 @@ address constant DAI  = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 
 contract MatcherTest is DSTest {
     Matcher matcher;
+//    WETH9 tok1 = new WETH9();
+//    WETH9 tok2 = new WETH9();
 
     function setUp() public {
         matcher = new Matcher();
