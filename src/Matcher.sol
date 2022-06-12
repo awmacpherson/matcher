@@ -7,27 +7,45 @@ import {IERC20} from './interfaces/IERC20.sol';
 struct Order {
 	uint256 buy_amount;
 	uint256 sell_amount;
-	address owner;
 	address buy_tok;
 	address sell_tok; // 3 addresses pack into 2 slots
 }
 
+struct OrderWithSender {
+	uint256 buy_amount;
+	uint256 sell_amount;
+	address buy_tok;
+	address sell_tok; // 3 addresses pack into 2 slots
+	address sender;
+}
+
+struct OrderState {
+	uint256 buy_amt;
+	uint256 sell_amt;
+}
+
 contract Matcher {
-	mapping (address => uint) credit; // keep track of who sent me money
-	mapping (bytes32 => Order) order_book; // key is keccak256 hash
+	mapping (address => 
+		 mapping(address => 
+			 mapping(address => OrderState))) order_book;
 
-	function create_order(Order calldata order) public returns (bytes32) {
-		// require order.owner = msg.sender? 
-		bytes32 order_id = keccak256(abi.encodePacked(
-			msg.sender, // or use msg.sender and DELEGATECALL?
-			order.buy_tok, 
-			order.sell_tok, 
-			order.buy_amount, 
-			order.sell_amount
-		));
+	event CreateOrder(
+		uint256 buy_amt,
+		uint256 sell_amt,
+		address indexed sender,
+		address indexed buy_tok,
+		address indexed sell_tok
+	); // how many topics are actually logged?
 
+	function create_order(Order calldata order) public {
 		// insert into order book
-		order_book[order_id] = order;
+		// design choice: merge orders with same signature
+		// If two orders have exactly the same price, it makes no difference to merge
+		// If they have different prices, I think it actually benefits
+		// the user to merge (by default the one with the "worse" price would
+		// be filled first).
+		order_book[msg.sender][order.buy_tok][order.sell_tok] 
+			= OrderState(order.buy_amount, order.sell_amount);
 		
 		// and actually transfer the tokens
 		IERC20(order.sell_tok).transferFrom(
@@ -35,13 +53,21 @@ contract Matcher {
 			address(this), 
 			order.sell_amount
 		);
+
+		emit CreateOrder(
+			order.buy_amount, 
+			order.sell_amount,
+			msg.sender,
+			order.buy_tok,
+			order.sell_tok
+		);
 		
-		// return a value in case this was called by some other contract
-		return order_id;
 	}
 
 	function partial_fill_order(
-		bytes32 order_id, 
+		address owner,
+		address buy_tok,
+		address sell_tok,
 		uint bid, 
 		uint ask
 	) public {
@@ -55,57 +81,50 @@ contract Matcher {
 
 		// only read from storage once
 		// the solc optimiser may do this automatically
-		Order memory order = order_book[order_id];
+		OrderState memory order = order_book[owner][buy_tok][sell_tok];
 		// some gas is wasted reading addresses in the case the
 		// transaction reverts without doing the transfers.
 		// On the other hand, reading packed addresses one by one
 		// may waste SLOADs.
 
 		// check invariants are preserved
-		require(ask * order.buy_amount <= bid * order.sell_amount);
-		require(bid <= order.buy_amount);
-		require(ask <= order.sell_amount); // redundant unless bid == buy == 0
-		// in this case order is giving stuff away for free
-		// optimisation: add a separate branch for this case?
+		require(ask * order.buy_amt <= bid * order.sell_amt); // overflow?
+		uint put;
+		uint get;
 
-		// design choice: allow bid > buy but have the fill_order
-		// partially execute?
+		if (bid <= order.buy_amt)
+			put = bid;
+		else
+			put = order.buy_amt;
+
+		if (ask <= order.sell_amt)
+			get = ask;
+		else
+			get = order.sell_amt;
 
 		// update storage
-		order_book[order_id].sell_amount = order.sell_amount - ask;
-		order_book[order_id].buy_amount = order.buy_amount - bid;
+		order_book[owner][buy_tok][sell_tok].sell_amt = order.sell_amt - get;
+		order_book[owner][buy_tok][sell_tok].buy_amt = order.buy_amt - put;
 
 		// and now actually do the transfers
-		IERC20(order_book[order_id].sell_tok).transfer(msg.sender, ask);
-		IERC20(order_book[order_id].buy_tok)
-			.transferFrom(msg.sender, order.owner, bid);
+		IERC20(sell_tok).transfer(msg.sender, get);
+		IERC20(buy_tok).transferFrom(msg.sender, owner, put);
 	}
 
-	function cancel_order(bytes32 order_id) public {
+	function cancel_order(address buy_tok, address sell_tok) public {
 		// cache sell order for refund (or do this before require())
-		address refund_tok = order_book[order_id].sell_tok;
-		uint refund_amt = order_book[order_id].sell_amount;
+		uint refund = order_book[msg.sender][buy_tok][sell_tok].sell_amt;
 
-		// check tx.origin is owner of this order
-		require(order_id == keccak256(abi.encodePacked(
-			msg.sender, // or tx.origin
-			order_book[order_id].buy_tok, 
-			refund_tok, 
-			order_book[order_id].buy_amount, 
-			refund_amt
-		)));
-		
-		// first two zeros are not needed for functionality
-		// but do it anyway to clear storage and get gas refund
-		order_book[order_id].buy_tok = address(0); 
-		order_book[order_id].sell_tok = address(0);
-		order_book[order_id].buy_amount = 0;
-		order_book[order_id].sell_amount = 0;
+		order_book[msg.sender][buy_tok][sell_tok].buy_amt = 0;
+		order_book[msg.sender][buy_tok][sell_tok].sell_amt = 0;
 
 		// and return the tokens
 		// questions: 
 		// 1. What context is this called in? Does it use DELEGATECALL?
-		// 2. Do we need to set allowance?
-		IERC20(refund_tok).transferFrom(address(this), msg.sender, refund_amt);
+		IERC20(sell_tok).transfer(msg.sender, refund);
+	}
+
+	function adjust_order(address buy_tok, address sell_tok) public {
+		// change order by adding or retrieving tokens
 	}
 }
