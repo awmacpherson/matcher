@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 
 import {ERC20PresetMinterPauser as ERC20} from "../lib/openzeppelin/contracts/token/ERC20/presets/ERC20PresetMinterPauser.sol";
 
-import "../src/Matcher.sol";
+import "../src/matcher.sol";
 
 address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 address constant DAI  = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
@@ -37,7 +37,7 @@ contract MatcherTest is Test {
 	matcher.create_order(order);
     }
 
-    function test_allow_create_order() public {
+    function test_approve_create_order() public {
 	    Order memory order = Order(1000, 1700, address(D), address(C));
 	    D.approve(address(matcher), 1700);
 	    matcher.create_order(order);
@@ -58,6 +58,6 @@ contract MatcherTest is Test {
     }
 
     function test_adjust_order() public {
-	    matcher.adjust_order(address(A), address(B));
+	    matcher.adjust_order(address(A), address(B), 9, 45);
     }
 }

@@ -89,6 +89,8 @@ contract Matcher {
 
 		// check invariants are preserved
 		require(ask * order.buy_amt <= bid * order.sell_amt); // overflow?
+
+		// if bid/ask exceeds total order amount, simply fill entire order
 		uint put;
 		uint get;
 
@@ -124,7 +126,24 @@ contract Matcher {
 		IERC20(sell_tok).transfer(msg.sender, refund);
 	}
 
-	function adjust_order(address buy_tok, address sell_tok) public {
+	function adjust_order(
+		address buy_tok, address sell_tok, 
+		int buy_adj, int sell_adj
+	) public {
 		// change order by adding or retrieving tokens
+		// adjustment may be positive or negative in either variable
+		// adjustment does not emit an event
+
+	/*	order_book[msg.sender][order.buy_tok][order.sell_tok] 
+			= OrderState(order.buy_amount, order.sell_amount);
+		
+		// and actually transfer the tokens
+		IERC20(order.sell_tok).transferFrom(
+			msg.sender, 
+			address(this), 
+			order.sell_amount
+		);
+	*/
 	}
+
 }
