@@ -27,7 +27,7 @@ struct OrderState {
 contract Matcher {
 	mapping (address => 
 		 mapping(address => 
-			 mapping(address => OrderState))) order_book;
+			 mapping(address => OrderState))) public order_book;
 
 	event CreateOrder(
 		uint256 buy_amt,
@@ -44,8 +44,12 @@ contract Matcher {
 		// If they have different prices, I think it actually benefits
 		// the user to merge (by default the one with the "worse" price would
 		// be filled first).
-		order_book[msg.sender][order.buy_tok][order.sell_tok] 
-			= OrderState(order.buy_amount, order.sell_amount);
+		order_book[msg.sender]
+			[order.buy_tok]
+				[order.sell_tok].buy_amt += order.buy_amount;
+		order_book[msg.sender]
+			[order.buy_tok]
+				[order.sell_tok].sell_amt += order.sell_amount;
 		
 		// and actually transfer the tokens
 		IERC20(order.sell_tok).transferFrom(

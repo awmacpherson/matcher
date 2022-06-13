@@ -45,9 +45,16 @@ contract MatcherTest is Test {
 
     function test_create_order() public {
 	    Order memory order = Order(1000, 1700, address(B), address(C));
-	    //B.approve(address(matcher), 1700);
 	    matcher.create_order(order);
     }
+
+    function test_create_order_twice() public {
+	    matcher.create_order(Order(1000, 1700, address(B), address(C)));
+	    matcher.create_order(Order(499, 111, address(B), address(C)));
+	    (uint x, ) = matcher.order_book(address(this), address(B), address(C));
+	    assertEq(x, 1499);
+    }
+
 
     function test_cancel_order() public {
 	    matcher.cancel_order(address(A), address(B));
