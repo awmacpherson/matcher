@@ -17,3 +17,5 @@ Design comments:
   I chose this design because it is light on storage and hence delivers low gas costs to users (less than 100K gas for a `create_order` TX).
   
   This design has an unusual side effect that each address can only have one trade open for each ordered pair of assets. Additional orders on the same pair are automatically "merged," possibly adjusting the unit price. Although it would be easy to adjust the design to track multiple orders with the same signature, I suspect that the fact that orders are always filled at their limit price means that there is little incentive to do this &mdash; if multiple orders for the same pair are open, the one with the "worst" price will always be filled first.
+  
+- `create_order` emits an event which indexes the addresses of the sender, the buy token, and the sell token. Aggregators will have to query the Ethereum logs and the current network state to build up a local picture of the order book. Optionally, a timeout could be added to orders so that aggregators only have to trawl logs back a fixed number of blocks.
