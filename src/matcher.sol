@@ -125,8 +125,6 @@ contract Matcher {
 		order_book[msg.sender][buy_tok][sell_tok].sell_amt = 0;
 
 		// and return the tokens
-		// questions: 
-		// 1. What context is this called in? Does it use DELEGATECALL?
 		IERC20(sell_tok).transfer(msg.sender, refund);
 	}
 
@@ -138,16 +136,9 @@ contract Matcher {
 		// adjustment may be positive or negative in either variable
 		// adjustment does not emit an event
 
-	/*	order_book[msg.sender][order.buy_tok][order.sell_tok] 
-			= OrderState(order.buy_amount, order.sell_amount);
-		
-		// and actually transfer the tokens
-		IERC20(order.sell_tok).transferFrom(
-			msg.sender, 
-			address(this), 
-			order.sell_amount
-		);
-	*/
+        // WARNING: this method is potentially vulnerable to frontrunning
+        // NOT IMPLEMENTED YET
+
 	}
 
 }
